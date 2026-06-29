@@ -1,0 +1,1398 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>فوتبال انگشتی + پنل مدیریت</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+        body {
+            background: #0f121a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            direction: rtl;
+            padding: 10px;
+        }
+        .app-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            max-width: 1400px;
+            width: 100%;
+            justify-content: center;
+        }
+        .game-wrapper {
+            flex: 1;
+            min-width: 320px;
+            max-width: 800px;
+        }
+        .game-container {
+            background: #181d2a;
+            border-radius: 32px;
+            padding: 16px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.8);
+            width: 100%;
+        }
+        .scoreboard {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #242424;
+            border-radius: 24px;
+            padding: 12px 20px;
+            margin-bottom: 12px;
+            color: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .team-score {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: transform 0.2s;
+        }
+        .team-score.active {
+            transform: scale(1.08);
+        }
+        .team-score .score-pill {
+            background: #ff3a30;
+            border-radius: 100px;
+            padding: 8px 18px;
+            font-size: 28px;
+            font-weight: 800;
+            color: white;
+            min-width: 60px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(255,58,48,0.4);
+        }
+        .team-score.blue .score-pill {
+            background: #007aff;
+            box-shadow: 0 4px 12px rgba(0,122,255,0.4);
+        }
+        .team-score .team-name {
+            font-size: 20px;
+            font-weight: 600;
+        }
+        .turn-badge {
+            background: #ffd700;
+            color: #1a1a1a;
+            padding: 6px 20px;
+            border-radius: 100px;
+            font-weight: 700;
+            font-size: 18px;
+            box-shadow: 0 4px 12px rgba(255,215,0,0.3);
+        }
+        .canvas-wrapper {
+            position: relative;
+            background: #236b43;
+            border-radius: 28px;
+            overflow: hidden;
+            box-shadow: inset 0 0 0 2px rgba(255,255,255,0.1);
+            aspect-ratio: 800 / 1422;
+            width: 100%;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            background: #2e8b57;
+            touch-action: none;
+            cursor: pointer;
+        }
+        .hint {
+            text-align: center;
+            color: #ccc;
+            background: #242424cc;
+            border-radius: 16px;
+            padding: 10px 20px;
+            margin-top: 12px;
+            font-size: 18px;
+            font-weight: 500;
+            backdrop-filter: blur(4px);
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0,0,0,0.7);
+            border-radius: 28px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        .overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .overlay .goal-text {
+            font-size: 60px;
+            font-weight: 900;
+            color: #ffd700;
+            text-shadow: 0 0 30px rgba(255,215,0,0.6);
+            transform: scale(0);
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .overlay.show .goal-text {
+            transform: scale(1);
+        }
+        .overlay .goal-emoji {
+            font-size: 80px;
+        }
+        .gameover-card {
+            background: #242424;
+            border-radius: 32px;
+            padding: 30px 24px;
+            text-align: center;
+            max-width: 320px;
+            width: 90%;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.8);
+        }
+        .gameover-card h2 {
+            color: #fff;
+            font-size: 26px;
+            margin-bottom: 8px;
+        }
+        .gameover-card .winner {
+            font-size: 34px;
+            font-weight: 800;
+            margin: 12px 0;
+        }
+        .gameover-card .scores {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin: 20px 0;
+        }
+        .gameover-card .scores div {
+            background: #ff3a30;
+            border-radius: 100px;
+            padding: 10px 28px;
+            font-size: 32px;
+            font-weight: 800;
+            color: white;
+        }
+        .gameover-card .scores .blue-score {
+            background: #007aff;
+        }
+        .gameover-card button {
+            background: #ffd700;
+            border: none;
+            border-radius: 16px;
+            padding: 14px 40px;
+            font-size: 22px;
+            font-weight: 700;
+            color: #1a1a1a;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(255,215,0,0.3);
+            transition: transform 0.1s;
+            width: 100%;
+            margin-top: 12px;
+        }
+        .gameover-card button:active {
+            transform: scale(0.96);
+        }
+
+        /* پنل مدیریت */
+        .panel {
+            background: #1e1e2a;
+            border-radius: 28px;
+            padding: 20px 24px;
+            min-width: 260px;
+            max-width: 340px;
+            color: #eee;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.7);
+            height: fit-content;
+            flex: 0 0 auto;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .panel h3 {
+            text-align: center;
+            margin-bottom: 16px;
+            color: #ffd700;
+            font-size: 22px;
+            border-bottom: 2px solid #333;
+            padding-bottom: 8px;
+        }
+        .panel .param-group {
+            margin-bottom: 12px;
+        }
+        .panel .param-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+            font-weight: 500;
+            color: #aaa;
+        }
+        .panel .param-header .help-icon {
+            cursor: pointer;
+            background: #2a2a3a;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: #ffd700;
+            transition: 0.2s;
+            margin-right: 6px;
+        }
+        .panel .param-header .help-icon:hover {
+            background: #444;
+        }
+        .panel input[type="range"] {
+            width: 100%;
+            margin: 4px 0 6px;
+            accent-color: #ffd700;
+            background: #333;
+            height: 4px;
+            border-radius: 4px;
+        }
+        .panel .value-display {
+            min-width: 36px;
+            text-align: left;
+            color: #ffd700;
+            font-weight: 600;
+        }
+        .panel .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #ddd;
+            margin: 12px 0 4px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 4px;
+        }
+        .panel .apply-btn, .panel .reset-btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 16px;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 12px;
+            transition: 0.1s;
+        }
+        .panel .apply-btn {
+            background: #ffd700;
+            color: #1a1a1a;
+            box-shadow: 0 4px 12px rgba(255,215,0,0.3);
+        }
+        .panel .reset-btn {
+            background: #444;
+            color: #fff;
+            font-size: 16px;
+            margin-top: 8px;
+        }
+        .panel .apply-btn:active, .panel .reset-btn:active {
+            transform: scale(0.96);
+        }
+
+        /* پاپ‌آپ راهنما */
+        .help-popup {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 999;
+            backdrop-filter: blur(4px);
+        }
+        .help-popup.show {
+            display: flex;
+        }
+        .help-popup .popup-content {
+            background: #242424;
+            border-radius: 28px;
+            padding: 28px 32px;
+            max-width: 420px;
+            width: 90%;
+            color: #eee;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.9);
+            position: relative;
+        }
+        .help-popup .popup-content h4 {
+            color: #ffd700;
+            font-size: 22px;
+            margin-bottom: 12px;
+        }
+        .help-popup .popup-content p {
+            font-size: 16px;
+            line-height: 1.7;
+            color: #ccc;
+        }
+        .help-popup .popup-content .close-popup {
+            position: absolute;
+            top: 12px;
+            left: 18px;
+            font-size: 28px;
+            cursor: pointer;
+            color: #aaa;
+            background: none;
+            border: none;
+        }
+        .help-popup .popup-content .close-popup:hover {
+            color: white;
+        }
+
+        @media (max-width: 700px) {
+            .app-container {
+                flex-direction: column;
+                align-items: center;
+            }
+            .panel {
+                max-width: 100%;
+                width: 100%;
+                max-height: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- بخش بازی -->
+        <div class="game-wrapper">
+            <div class="game-container">
+                <div class="scoreboard" id="scoreboard">
+                    <div class="team-score red" id="redScore">
+                        <span class="team-name">قرمز</span>
+                        <span class="score-pill" id="redScoreValue">0</span>
+                    </div>
+                    <span class="turn-badge" id="turnBadge">نوبت</span>
+                    <div class="team-score blue" id="blueScore">
+                        <span class="score-pill" id="blueScoreValue">0</span>
+                        <span class="team-name">آبی</span>
+                    </div>
+                </div>
+
+                <div class="canvas-wrapper" id="canvasWrapper">
+                    <canvas id="gameCanvas" width="800" height="1422"></canvas>
+                    <div class="overlay" id="goalOverlay">
+                        <div class="goal-emoji">⚽</div>
+                        <div class="goal-text">GOOOAL!</div>
+                    </div>
+                    <div class="overlay" id="gameOverOverlay">
+                        <div class="gameover-card">
+                            <h2 id="gameOverTitle">بازی تمام شد!</h2>
+                            <div class="winner" id="gameOverWinner">قرمز قهرمان!</div>
+                            <div class="scores">
+                                <div id="finalRed">0</div>
+                                <div class="blue-score" id="finalBlue">0</div>
+                            </div>
+                            <button id="resetButton">بازی مجدد</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="hint" id="hintText">یکی از دیسک‌های تیمت رو لمس کن!</div>
+            </div>
+        </div>
+
+        <!-- پنل مدیریت -->
+        <div class="panel" id="controlPanel">
+            <h3>⚙️ پنل فیزیک</h3>
+            <div class="section-title">دیسک‌ها</div>
+            <div class="param-group">
+                <div class="param-header">
+                    <span>ضریب بازگشت <span class="help-icon" data-param="discRestitution">❓</span></span>
+                    <span class="value-display" id="discRestitutionVal">0.50</span>
+                </div>
+                <input type="range" id="discRestitution" min="0" max="1" step="0.01" value="0.5">
+            </div>
+            <div class="param-group">
+                <div class="param-header">
+                    <span>اصطکاک <span class="help-icon" data-param="discFriction">❓</span></span>
+                    <span class="value-display" id="discFrictionVal">0.40</span>
+                </div>
+                <input type="range" id="discFriction" min="0" max="1" step="0.01" value="0.4">
+            </div>
+            <div class="param-group">
+                <div class="param-header">
+                    <span>چگالی <span class="help-icon" data-param="discDensity">❓</span></span>
+                    <span class="value-display" id="discDensityVal">4.00</span>
+                </div>
+                <input type="range" id="discDensity" min="0.5" max="10" step="0.1" value="4">
+            </div>
+            <div class="param-group">
+                <div class="param-header">
+                    <span>میرایی خطی <span class="help-icon" data-param="discLinearDamping">❓</span></span>
+                    <span class="value-display" id="discLinearDampingVal">0.60</span>
+                </div>
+                <input type="range" id="discLinearDamping" min="0" max="1" step="0.01" value="0.6">
+            </div>
+            <div class="param-group">
+                <div class="param-header">
+                    <span>میرایی زاویه‌ای <span class="help-icon" data-param="discAngularDamping">❓</span></span>
+                    <span class="value-display" id="discAngularDampingVal">1.20</span>
+                </div>
+                <input type="range" id="discAngularDamping" min="0" max="2" step="0.01" value="1.2">
+            </div>
+
+            <div class="section-title">توپ</div>
+            <div class="param-group">
+                <div class="param-header">
+                    <span>ضریب بازگشت <span class="help-icon" data-param="ballRestitution">❓</span></span>
+                    <span class="value-display" id="ballRestitutionVal">0.85</span>
+                </div>
+                <input type="range" id="ballRestitution" min="0" max="1" step="0.01" value="0.85">
+            </div>
+            <div class="param-group">
+                <div class="param-header">
+                    <span>اصطکاک <span class="help-icon" data-param="ballFriction">❓</span></span>
+                    <span class="value-display" id="ballFrictionVal">0.20</span>
+                </div>
+                <input type="range" id="ballFriction" min="0" max="1" step="0.01" value="0.2">
+            </div>
+            <div class="param-group">
+                <div class="param-header">
+                    <span>چگالی <span class="help-icon" data-param="ballDensity">❓</span></span>
+                    <span class="value-display" id="ballDensityVal">0.80</span>
+                </div>
+                <input type="range" id="ballDensity" min="0.1" max="3" step="0.05" value="0.8">
+            </div>
+            <div class="param-group">
+                <div class="param-header">
+                    <span>میرایی خطی <span class="help-icon" data-param="ballLinearDamping">❓</span></span>
+                    <span class="value-display" id="ballLinearDampingVal">0.08</span>
+                </div>
+                <input type="range" id="ballLinearDamping" min="0" max="0.5" step="0.005" value="0.08">
+            </div>
+            <div class="param-group">
+                <div class="param-header">
+                    <span>میرایی زاویه‌ای <span class="help-icon" data-param="ballAngularDamping">❓</span></span>
+                    <span class="value-display" id="ballAngularDampingVal">0.40</span>
+                </div>
+                <input type="range" id="ballAngularDamping" min="0" max="1" step="0.01" value="0.4">
+            </div>
+
+            <div class="section-title">عمومی</div>
+            <div class="param-group">
+                <div class="param-header">
+                    <span>حداکثر سرعت (px/s) <span class="help-icon" data-param="maxSpeed">❓</span></span>
+                    <span class="value-display" id="maxSpeedVal">3000</span>
+                </div>
+                <input type="range" id="maxSpeed" min="1000" max="6000" step="50" value="3000">
+            </div>
+            <div class="param-group">
+                <div class="param-header">
+                    <span>ضریب قدرت ضربه <span class="help-icon" data-param="flickPower">❓</span></span>
+                    <span class="value-display" id="flickPowerVal">50</span>
+                </div>
+                <input type="range" id="flickPower" min="20" max="100" step="1" value="50">
+            </div>
+            <div class="param-group">
+                <div class="param-header">
+                    <span>عرض دروازه <span class="help-icon" data-param="goalWidth">❓</span></span>
+                    <span class="value-display" id="goalWidthVal">150</span>
+                </div>
+                <input type="range" id="goalWidth" min="80" max="250" step="5" value="150">
+            </div>
+
+            <button class="apply-btn" id="applyBtn">✅ اعمال تغییرات (ریست بازی)</button>
+            <button class="reset-btn" id="resetGameBtn">🔄 ریست بازی (با پارامترهای فعلی)</button>
+        </div>
+    </div>
+
+    <!-- پاپ‌آپ راهنما -->
+    <div class="help-popup" id="helpPopup">
+        <div class="popup-content">
+            <button class="close-popup" id="closePopup">✕</button>
+            <h4 id="popupTitle">راهنما</h4>
+            <p id="popupDesc">توضیحات پارامتر</p>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        //  SOCCER STRIKER – با پنل مدیریت و بهبودهای بصری
+        // ============================================================
+
+        const { Engine, Bodies, Body, Composite, Events, World } = Matter;
+
+        // ---- پارامترهای قابل تنظیم ----
+        const CONFIG = {
+            discRadius: 38,
+            ballRadius: 25,
+            discRestitution: 0.5,
+            discFriction: 0.4,
+            discDensity: 4,
+            discLinearDamping: 0.6,
+            discAngularDamping: 1.2,
+            ballRestitution: 0.85,
+            ballFriction: 0.2,
+            ballDensity: 0.8,
+            ballLinearDamping: 0.08,
+            ballAngularDamping: 0.4,
+            maxSpeed: 3000,
+            flickPowerFactor: 50,
+            goalWidth: 150,
+        };
+
+        // ---- ثوابت زمین ----
+        const FIELD_W = 800;
+        const FIELD_H = 1422;
+        const GOAL_DEPTH = 20;
+        const WIN_SCORE = 5;
+
+        // ---- DOM ----
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const redScoreEl = document.getElementById('redScoreValue');
+        const blueScoreEl = document.getElementById('blueScoreValue');
+        const turnBadge = document.getElementById('turnBadge');
+        const hintEl = document.getElementById('hintText');
+        const goalOverlay = document.getElementById('goalOverlay');
+        const gameOverOverlay = document.getElementById('gameOverOverlay');
+        const finalRed = document.getElementById('finalRed');
+        const finalBlue = document.getElementById('finalBlue');
+        const gameOverWinner = document.getElementById('gameOverWinner');
+        const gameOverTitle = document.getElementById('gameOverTitle');
+        const resetBtn = document.getElementById('resetButton');
+        const applyBtn = document.getElementById('applyBtn');
+        const resetGameBtn = document.getElementById('resetGameBtn');
+        const helpPopup = document.getElementById('helpPopup');
+        const popupTitle = document.getElementById('popupTitle');
+        const popupDesc = document.getElementById('popupDesc');
+        const closePopup = document.getElementById('closePopup');
+
+        // ---- دیکشنری توضیحات پارامترها ----
+        const HELP_TEXTS = {
+            discRestitution: 'ضریب بازگشت دیسک: میزان جهش دیسک پس از برخورد با دیوار یا سایر اجسام. مقدار بیشتر = جهش بیشتر.',
+            discFriction: 'اصطکاک دیسک: میزان لغزندگی دیسک روی سطح و برخورد با اجسام. مقدار بیشتر = اصطکاک بیشتر و کندتر حرکت.',
+            discDensity: 'چگالی دیسک: تأثیر جرم دیسک بر برخوردها. چگالی بیشتر = سنگین‌تر و کندتر تغییر مسیر.',
+            discLinearDamping: 'میرایی خطی دیسک: کاهش سرعت خطی دیسک در طول زمان. مقدار بیشتر = توقف سریع‌تر.',
+            discAngularDamping: 'میرایی زاویه‌ای دیسک: کاهش سرعت چرخش دیسک. مقدار بیشتر = توقف چرخش سریع‌تر.',
+            ballRestitution: 'ضریب بازگشت توپ: میزان جهش توپ پس از برخورد با دیوار یا دیسک. مقدار بیشتر = جهش بیشتر.',
+            ballFriction: 'اصطکاک توپ: میزان لغزندگی توپ روی سطح. مقدار بیشتر = اصطکاک بیشتر.',
+            ballDensity: 'چگالی توپ: تأثیر جرم توپ بر برخوردها. چگالی بیشتر = سنگین‌تر و کندتر حرکت.',
+            ballLinearDamping: 'میرایی خطی توپ: کاهش سرعت خطی توپ. مقدار بیشتر = توقف سریع‌تر.',
+            ballAngularDamping: 'میرایی زاویه‌ای توپ: کاهش سرعت چرخش توپ. مقدار بیشتر = توقف چرخش سریع‌تر.',
+            maxSpeed: 'حداکثر سرعت مجاز برای دیسک‌ها (پیکسل بر ثانیه). از حرکت بیش از حد سریع جلوگیری می‌کند.',
+            flickPower: 'ضریب قدرت ضربه: هرچه بیشتر باشد، ضربه قوی‌تر خواهد بود (با همان طول کشیدن).',
+            goalWidth: 'عرض دروازه: پهنای دروازه بر حسب پیکسل. بر بازی و هدف‌گیری تأثیر می‌گذارد.'
+        };
+
+        // ---- موتور فیزیک ----
+        const engine = Engine.create({ gravity: { x: 0, y: 0 } });
+        const world = engine.world;
+
+        // ---- State ----
+        const state = {
+            players: ['red', 'blue'],
+            currentPlayerIndex: 0,
+            scoreRed: 0,
+            scoreBlue: 0,
+            discs: [],
+            ball: null,
+            phase: 'WAITING',
+            selectedDiscId: null,
+            isGameOver: false,
+            winner: null,
+            isKickOff: true,
+            goalScored: null,
+            simRunning: false,
+        };
+
+        let dragData = { active: false, startX: 0, startY: 0, endX: 0, endY: 0 };
+
+        // ---- توابع کمکی ----
+        function getCurrentTeam() { return state.players[state.currentPlayerIndex]; }
+
+        // ---- ایجاد اجسام با CONFIG ----
+        function createWallsAndSensors() {
+            const bodies = [];
+            const thickness = 20;
+            // دیواره‌های چپ و راست
+            bodies.push(Bodies.rectangle(0, FIELD_H/2, thickness, FIELD_H, { isStatic: true, label: 'wall' }));
+            bodies.push(Bodies.rectangle(FIELD_W, FIELD_H/2, thickness, FIELD_H, { isStatic: true, label: 'wall' }));
+
+            const gap = CONFIG.goalWidth / 2;
+            // دیواره‌های بالا و پایین (دو بخش)
+            const wallTopLeft = Bodies.rectangle((FIELD_W - CONFIG.goalWidth)/4, FIELD_H, (FIELD_W - CONFIG.goalWidth)/2, thickness, { isStatic: true, label: 'wall' });
+            const wallTopRight = Bodies.rectangle(FIELD_W - (FIELD_W - CONFIG.goalWidth)/4, FIELD_H, (FIELD_W - CONFIG.goalWidth)/2, thickness, { isStatic: true, label: 'wall' });
+            const wallBottomLeft = Bodies.rectangle((FIELD_W - CONFIG.goalWidth)/4, 0, (FIELD_W - CONFIG.goalWidth)/2, thickness, { isStatic: true, label: 'wall' });
+            const wallBottomRight = Bodies.rectangle(FIELD_W - (FIELD_W - CONFIG.goalWidth)/4, 0, (FIELD_W - CONFIG.goalWidth)/2, thickness, { isStatic: true, label: 'wall' });
+            bodies.push(wallTopLeft, wallTopRight, wallBottomLeft, wallBottomRight);
+
+            // دیواره‌های دروازه (برای برخورد دیسک‌ها مانند تور)
+            const goalWallRed = Bodies.rectangle(FIELD_W/2, FIELD_H - GOAL_DEPTH/2, CONFIG.goalWidth, GOAL_DEPTH, {
+                isStatic: true,
+                label: 'goalWall',
+                restitution: CONFIG.discRestitution,
+                friction: CONFIG.discFriction,
+                collisionFilter: { category: 0, mask: 1 }
+            });
+            const goalWallBlue = Bodies.rectangle(FIELD_W/2, GOAL_DEPTH/2, CONFIG.goalWidth, GOAL_DEPTH, {
+                isStatic: true,
+                label: 'goalWall',
+                restitution: CONFIG.discRestitution,
+                friction: CONFIG.discFriction,
+                collisionFilter: { category: 0, mask: 1 }
+            });
+            bodies.push(goalWallRed, goalWallBlue);
+
+            // سنسورهای گل
+            const sensorRed = Bodies.rectangle(FIELD_W/2, FIELD_H - GOAL_DEPTH/2, CONFIG.goalWidth, GOAL_DEPTH, {
+                isStatic: true,
+                isSensor: true,
+                label: 'goal_red',
+                friction: 0,
+                restitution: 0
+            });
+            const sensorBlue = Bodies.rectangle(FIELD_W/2, GOAL_DEPTH/2, CONFIG.goalWidth, GOAL_DEPTH, {
+                isStatic: true,
+                isSensor: true,
+                label: 'goal_blue',
+                friction: 0,
+                restitution: 0
+            });
+            bodies.push(sensorRed, sensorBlue);
+
+            return bodies;
+        }
+
+        function createDiscs() {
+            const discs = [];
+            const redY = 200;
+            const blueY = FIELD_H - 200;
+            const positions = [
+                { x: FIELD_W/2, y: redY - 100, id: 'red-1' },
+                { x: FIELD_W/2 - 150, y: redY, id: 'red-2' },
+                { x: FIELD_W/2 + 150, y: redY, id: 'red-3' },
+                { x: FIELD_W/2 - 100, y: redY + 100, id: 'red-4' },
+                { x: FIELD_W/2 + 100, y: redY + 100, id: 'red-5' },
+                { x: FIELD_W/2, y: blueY + 100, id: 'blue-1' },
+                { x: FIELD_W/2 - 150, y: blueY, id: 'blue-2' },
+                { x: FIELD_W/2 + 150, y: blueY, id: 'blue-3' },
+                { x: FIELD_W/2 - 100, y: blueY - 100, id: 'blue-4' },
+                { x: FIELD_W/2 + 100, y: blueY - 100, id: 'blue-5' }
+            ];
+            positions.forEach(p => {
+                const team = p.id.startsWith('red') ? 'red' : 'blue';
+                const body = Bodies.circle(p.x, p.y, CONFIG.discRadius, {
+                    label: 'disc',
+                    restitution: CONFIG.discRestitution,
+                    friction: CONFIG.discFriction,
+                    density: CONFIG.discDensity,
+                    linearDamping: CONFIG.discLinearDamping,
+                    angularDamping: CONFIG.discAngularDamping,
+                    collisionFilter: { category: 1, mask: 0xFFFF }
+                });
+                body.id = p.id;
+                body.team = team;
+                discs.push({ id: p.id, team, body });
+            });
+            return discs;
+        }
+
+        function createBall() {
+            return Bodies.circle(FIELD_W/2, FIELD_H/2, CONFIG.ballRadius, {
+                label: 'ball',
+                restitution: CONFIG.ballRestitution,
+                friction: CONFIG.ballFriction,
+                density: CONFIG.ballDensity,
+                linearDamping: CONFIG.ballLinearDamping,
+                angularDamping: CONFIG.ballAngularDamping,
+                collisionFilter: { category: 2, mask: 0xFFFF }
+            });
+        }
+
+        // ---- ریست بازی ----
+        function resetGame() {
+            const allBodies = Composite.allBodies(world);
+            Composite.remove(world, allBodies);
+
+            const wallsSensors = createWallsAndSensors();
+            Composite.add(world, wallsSensors);
+
+            const discData = createDiscs();
+            state.discs = discData;
+            discData.forEach(d => Composite.add(world, d.body));
+
+            const ballBody = createBall();
+            state.ball = ballBody;
+            Composite.add(world, ballBody);
+
+            state.scoreRed = 0;
+            state.scoreBlue = 0;
+            state.currentPlayerIndex = 0;
+            state.selectedDiscId = null;
+            state.phase = 'WAITING';
+            state.isGameOver = false;
+            state.winner = null;
+            state.isKickOff = true;
+            state.goalScored = null;
+            state.simRunning = false;
+
+            updateUI();
+            hideOverlays();
+            hintEl.textContent = 'یکی از دیسک‌های تیمت رو لمس کن!';
+            goalOverlay.classList.remove('show');
+            gameOverOverlay.classList.remove('show');
+        }
+
+        // ---- اعمال flick ----
+        function applyFlick(discId, angle, power) {
+            const disc = state.discs.find(d => d.id === discId);
+            if (!disc) return false;
+            const impulseMagnitude = power * CONFIG.flickPowerFactor;
+            const vx = Math.cos(angle) * impulseMagnitude;
+            const vy = Math.sin(angle) * impulseMagnitude;
+            const currentVx = disc.body.velocity.x;
+            const currentVy = disc.body.velocity.y;
+            let newVx = currentVx + vx / CONFIG.discDensity;
+            let newVy = currentVy + vy / CONFIG.discDensity;
+            const speed = Math.sqrt(newVx*newVx + newVy*newVy);
+            if (speed > CONFIG.maxSpeed) {
+                newVx = (newVx / speed) * CONFIG.maxSpeed;
+                newVy = (newVy / speed) * CONFIG.maxSpeed;
+            }
+            Body.setVelocity(disc.body, { x: newVx, y: newVy });
+            return true;
+        }
+
+        // ---- شبیه‌سازی ----
+        function startSimulation() {
+            state.phase = 'SIMULATING';
+            state.simRunning = true;
+            hintEl.textContent = 'در حال شبیه‌سازی...';
+        }
+
+        function checkStopCondition() {
+            if (!state.simRunning) return false;
+            let totalKE = 0;
+            const bodies = Composite.allBodies(world);
+            bodies.forEach(b => {
+                if (b.label === 'wall' || b.label === 'goalWall' || b.isSensor) return;
+                const vx = b.velocity.x;
+                const vy = b.velocity.y;
+                totalKE += vx*vx + vy*vy;
+            });
+            if (totalKE < 0.5) {
+                state.simRunning = false;
+                state.phase = 'WAITING';
+                if (state.goalScored) {
+                    handleGoal(state.goalScored);
+                    state.goalScored = null;
+                } else {
+                    nextTurn();
+                }
+                updateUI();
+                return true;
+            }
+            return false;
+        }
+
+        // ---- مدیریت گل ----
+        function handleGoal(team) {
+            if (state.isKickOff && team === getCurrentTeam()) {
+                nextTurn();
+                return;
+            }
+            if (team === 'red') state.scoreRed++;
+            else state.scoreBlue++;
+
+            showGoalAnimation();
+
+            if (state.scoreRed >= WIN_SCORE || state.scoreBlue >= WIN_SCORE) {
+                state.isGameOver = true;
+                state.winner = state.scoreRed >= WIN_SCORE ? 'red' : 'blue';
+                state.phase = 'GAME_OVER';
+                showGameOver();
+                updateUI();
+                return;
+            }
+
+            resetPositions();
+            state.isKickOff = true;
+            nextTurn();
+            updateUI();
+        }
+
+        function resetPositions() {
+            const initialPositions = [
+                { id: 'red-1', x: FIELD_W/2, y: 100 },
+                { id: 'red-2', x: FIELD_W/2 - 150, y: 200 },
+                { id: 'red-3', x: FIELD_W/2 + 150, y: 200 },
+                { id: 'red-4', x: FIELD_W/2 - 100, y: 300 },
+                { id: 'red-5', x: FIELD_W/2 + 100, y: 300 },
+                { id: 'blue-1', x: FIELD_W/2, y: FIELD_H - 100 },
+                { id: 'blue-2', x: FIELD_W/2 - 150, y: FIELD_H - 200 },
+                { id: 'blue-3', x: FIELD_W/2 + 150, y: FIELD_H - 200 },
+                { id: 'blue-4', x: FIELD_W/2 - 100, y: FIELD_H - 300 },
+                { id: 'blue-5', x: FIELD_W/2 + 100, y: FIELD_H - 300 }
+            ];
+            state.discs.forEach(disc => {
+                const pos = initialPositions.find(p => p.id === disc.id);
+                if (pos) {
+                    Body.setPosition(disc.body, { x: pos.x, y: pos.y });
+                    Body.setVelocity(disc.body, { x: 0, y: 0 });
+                    Body.setAngularVelocity(disc.body, 0);
+                }
+            });
+            if (state.ball) {
+                Body.setPosition(state.ball, { x: FIELD_W/2, y: FIELD_H/2 });
+                Body.setVelocity(state.ball, { x: 0, y: 0 });
+                Body.setAngularVelocity(state.ball, 0);
+            }
+        }
+
+        function nextTurn() {
+            state.currentPlayerIndex = (state.currentPlayerIndex + 1) % state.players.length;
+            state.selectedDiscId = null;
+            state.phase = 'WAITING';
+            state.isKickOff = false;
+            if (state.isGameOver) return;
+            const team = getCurrentTeam();
+            hintEl.textContent = 'نوبت ' + (team === 'red' ? 'قرمز' : 'آبی');
+            updateUI();
+        }
+
+        // ---- نمایش اوورلی ----
+        function showGoalAnimation() {
+            goalOverlay.classList.add('show');
+            setTimeout(() => goalOverlay.classList.remove('show'), 1500);
+        }
+
+        function showGameOver() {
+            const winnerName = state.winner === 'red' ? 'قرمز' : 'آبی';
+            gameOverWinner.textContent = state.winner ? winnerName + ' قهرمان!' : 'مساوی!';
+            gameOverTitle.textContent = state.winner ? 'تبریک!' : 'بازی تمام شد!';
+            finalRed.textContent = state.scoreRed;
+            finalBlue.textContent = state.scoreBlue;
+            gameOverOverlay.classList.add('show');
+        }
+
+        function hideOverlays() {
+            goalOverlay.classList.remove('show');
+            gameOverOverlay.classList.remove('show');
+        }
+
+        function updateUI() {
+            redScoreEl.textContent = state.scoreRed;
+            blueScoreEl.textContent = state.scoreBlue;
+            const team = getCurrentTeam();
+            turnBadge.textContent = 'نوبت ' + (team === 'red' ? 'قرمز' : 'آبی');
+            document.querySelector('.team-score.red').classList.toggle('active', team === 'red');
+            document.querySelector('.team-score.blue').classList.toggle('active', team === 'blue');
+        }
+
+        // ---- رویدادهای Matter ----
+        function setupCollisionEvents() {
+            Events.on(engine, 'collisionStart', (event) => {
+                const pairs = event.pairs;
+                for (const pair of pairs) {
+                    const bodyA = pair.bodyA;
+                    const bodyB = pair.bodyB;
+                    if ((bodyA.label === 'ball' && (bodyB.label === 'goal_red' || bodyB.label === 'goal_blue')) ||
+                        (bodyB.label === 'ball' && (bodyA.label === 'goal_red' || bodyA.label === 'goal_blue'))) {
+                        const sensor = bodyA.label === 'goal_red' || bodyA.label === 'goal_blue' ? bodyA : bodyB;
+                        const team = sensor.label === 'goal_red' ? 'red' : 'blue';
+                        if (state.simRunning && !state.goalScored && !state.isGameOver) {
+                            state.goalScored = team;
+                        }
+                    }
+                }
+            });
+        }
+
+        // ---- رندرینگ با بهبودهای بصری ----
+        function draw() {
+            ctx.clearRect(0, 0, FIELD_W, FIELD_H);
+
+            // ---- زمین چمن با خطوط مورب ----
+            const grassGrad = ctx.createLinearGradient(0, 0, 0, FIELD_H);
+            grassGrad.addColorStop(0, '#2e8b57');
+            grassGrad.addColorStop(0.5, '#3ca55c');
+            grassGrad.addColorStop(1, '#2e8b57');
+            ctx.fillStyle = grassGrad;
+            ctx.fillRect(0, 0, FIELD_W, FIELD_H);
+
+            // خطوط مورب برای جلوه چمن
+            ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+            ctx.lineWidth = 2;
+            for (let i = -FIELD_H; i < FIELD_W + FIELD_H; i += 30) {
+                ctx.beginPath();
+                ctx.moveTo(i, 0);
+                ctx.lineTo(i + FIELD_H, FIELD_H);
+                ctx.stroke();
+            }
+            // خطوط افقی کمرنگ
+            ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+            ctx.lineWidth = 1;
+            for (let y = 0; y < FIELD_H; y += 20) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(FIELD_W, y);
+                ctx.stroke();
+            }
+
+            // ---- خطوط زمین ----
+            ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(0, 0, FIELD_W, FIELD_H);
+            ctx.beginPath();
+            ctx.moveTo(0, FIELD_H/2);
+            ctx.lineTo(FIELD_W, FIELD_H/2);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(FIELD_W/2, FIELD_H/2, 64, 0, 2*Math.PI);
+            ctx.stroke();
+            ctx.fillStyle = 'rgba(255,255,255,0.8)';
+            ctx.beginPath();
+            ctx.arc(FIELD_W/2, FIELD_H/2, 6, 0, 2*Math.PI);
+            ctx.fill();
+
+            // محوطه جریمه
+            ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+            ctx.lineWidth = 2;
+            const areaW = CONFIG.goalWidth * 1.5;
+            const areaH = 72;
+            ctx.strokeRect((FIELD_W - areaW)/2, FIELD_H - areaH, areaW, areaH);
+            ctx.strokeRect((FIELD_W - areaW)/2, 0, areaW, areaH);
+
+            // ---- تورهای دروازه (مشبک) ----
+            const goalLeft = (FIELD_W - CONFIG.goalWidth) / 2;
+            const goalRight = goalLeft + CONFIG.goalWidth;
+            const netDepth = 30;
+            const netColor = 'rgba(255,255,255,0.25)';
+            const netLineColor = 'rgba(255,255,255,0.5)';
+
+            // تور بالا (قرمز)
+            ctx.fillStyle = netColor;
+            ctx.fillRect(goalLeft, FIELD_H - netDepth, CONFIG.goalWidth, netDepth);
+            ctx.strokeStyle = netLineColor;
+            ctx.lineWidth = 1;
+            // خطوط عمودی
+            for (let x = goalLeft + 8; x < goalRight; x += 12) {
+                ctx.beginPath();
+                ctx.moveTo(x, FIELD_H - netDepth);
+                ctx.lineTo(x, FIELD_H);
+                ctx.stroke();
+            }
+            // خطوط افقی
+            for (let y = FIELD_H - netDepth + 6; y < FIELD_H; y += 12) {
+                ctx.beginPath();
+                ctx.moveTo(goalLeft, y);
+                ctx.lineTo(goalRight, y);
+                ctx.stroke();
+            }
+
+            // تور پایین (آبی)
+            ctx.fillStyle = netColor;
+            ctx.fillRect(goalLeft, 0, CONFIG.goalWidth, netDepth);
+            ctx.strokeStyle = netLineColor;
+            ctx.lineWidth = 1;
+            for (let x = goalLeft + 8; x < goalRight; x += 12) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, netDepth);
+                ctx.stroke();
+            }
+            for (let y = 6; y < netDepth; y += 12) {
+                ctx.beginPath();
+                ctx.moveTo(goalLeft, y);
+                ctx.lineTo(goalRight, y);
+                ctx.stroke();
+            }
+
+            // ---- دیسک‌ها ----
+            state.discs.forEach(disc => {
+                const body = disc.body;
+                const x = body.position.x;
+                const y = body.position.y;
+                const r = CONFIG.discRadius;
+                const isRed = disc.team === 'red';
+                const gradient = ctx.createRadialGradient(x - r/2.5, y - r/2.5, 2, x, y, r);
+                if (isRed) {
+                    gradient.addColorStop(0, '#ff6b6b');
+                    gradient.addColorStop(0.5, '#ff3a30');
+                    gradient.addColorStop(1, '#b31212');
+                } else {
+                    gradient.addColorStop(0, '#55acff');
+                    gradient.addColorStop(0.5, '#007aff');
+                    gradient.addColorStop(1, '#0051aa');
+                }
+                ctx.shadowColor = 'rgba(0,0,0,0.5)';
+                ctx.shadowBlur = 12;
+                ctx.shadowOffsetX = 4;
+                ctx.shadowOffsetY = 6;
+                ctx.beginPath();
+                ctx.arc(x, y, r, 0, 2*Math.PI);
+                ctx.fillStyle = gradient;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                ctx.shadowOffsetX = 0;
+                ctx.shadowOffsetY = 0;
+
+                ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(x, y, r * 0.85, 0, 2*Math.PI);
+                ctx.stroke();
+
+                const num = disc.id.split('-')[1];
+                ctx.fillStyle = 'white';
+                ctx.font = `bold ${r * 0.7}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(num, x, y);
+
+                if (state.selectedDiscId === disc.id) {
+                    ctx.strokeStyle = '#ffd700';
+                    ctx.lineWidth = 6;
+                    ctx.shadowColor = '#ffd700';
+                    ctx.shadowBlur = 20;
+                    ctx.beginPath();
+                    ctx.arc(x, y, r + 10, 0, 2*Math.PI);
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
+                }
+            });
+
+            // ---- توپ (شبیه توپ واقعی) ----
+            if (state.ball) {
+                const b = state.ball;
+                const x = b.position.x;
+                const y = b.position.y;
+                const r = CONFIG.ballRadius;
+
+                // سایه
+                ctx.shadowColor = 'rgba(0,0,0,0.5)';
+                ctx.shadowBlur = 15;
+                ctx.shadowOffsetX = 4;
+                ctx.shadowOffsetY = 6;
+
+                // بدنه سفید
+                ctx.beginPath();
+                ctx.arc(x, y, r, 0, 2*Math.PI);
+                ctx.fillStyle = '#f0f0f0';
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                ctx.shadowOffsetX = 0;
+                ctx.shadowOffsetY = 0;
+
+                // پنج ضلعی‌های سیاه (الگوی توپ کلاسیک)
+                const pentagons = 5;
+                const angleStep = (2 * Math.PI) / pentagons;
+                const pentR = r * 0.38;
+                const offset = r * 0.3;
+                ctx.fillStyle = '#222';
+                for (let i = 0; i < pentagons; i++) {
+                    const a = i * angleStep + Math.PI/2;
+                    const cx = x + offset * Math.cos(a);
+                    const cy = y + offset * Math.sin(a);
+                    ctx.beginPath();
+                    for (let j = 0; j < 5; j++) {
+                        const ja = j * (2*Math.PI/5) - Math.PI/2;
+                        const px = cx + pentR * Math.cos(ja);
+                        const py = cy + pentR * Math.sin(ja);
+                        if (j === 0) ctx.moveTo(px, py);
+                        else ctx.lineTo(px, py);
+                    }
+                    ctx.closePath();
+                    ctx.fill();
+                }
+                // چند پنج ضلعی کوچک اضافه برای واقع‌گرایی
+                for (let i = 0; i < 3; i++) {
+                    const a = i * (2*Math.PI/3) + Math.PI/6;
+                    const cx = x + r * 0.6 * Math.cos(a);
+                    const cy = y + r * 0.6 * Math.sin(a);
+                    ctx.beginPath();
+                    for (let j = 0; j < 5; j++) {
+                        const ja = j * (2*Math.PI/5);
+                        const px = cx + pentR * 0.6 * Math.cos(ja);
+                        const py = cy + pentR * 0.6 * Math.sin(ja);
+                        if (j === 0) ctx.moveTo(px, py);
+                        else ctx.lineTo(px, py);
+                    }
+                    ctx.closePath();
+                    ctx.fill();
+                }
+                // خطوط اتصال (اختیاری)
+                ctx.strokeStyle = '#222';
+                ctx.lineWidth = 1.5;
+                for (let i = 0; i < pentagons; i++) {
+                    const a = i * angleStep + Math.PI/2;
+                    const cx = x + offset * Math.cos(a);
+                    const cy = y + offset * Math.sin(a);
+                    const nextA = a + angleStep;
+                    const nx = x + offset * Math.cos(nextA);
+                    const ny = y + offset * Math.sin(nextA);
+                    ctx.beginPath();
+                    ctx.moveTo(cx, cy);
+                    ctx.lineTo(nx, ny);
+                    ctx.stroke();
+                }
+            }
+
+            // ---- خط راهنما ----
+            if (state.phase === 'AIMING' && state.selectedDiscId && dragData.active) {
+                const disc = state.discs.find(d => d.id === state.selectedDiscId);
+                if (disc) {
+                    const startX = disc.body.position.x;
+                    const startY = disc.body.position.y;
+                    const endX = dragData.endX;
+                    const endY = dragData.endY;
+                    const dx = endX - startX;
+                    const dy = endY - startY;
+                    const length = Math.sqrt(dx*dx + dy*dy);
+                    if (length > 5) {
+                        const power = Math.min(length / 140, 1);
+                        let color = '#00e676';
+                        if (power > 0.6) color = '#ffeb3b';
+                        if (power > 0.8) color = '#f44336';
+
+                        ctx.save();
+                        ctx.shadowColor = 'rgba(0,0,0,0.3)';
+                        ctx.shadowBlur = 20;
+                        ctx.lineCap = 'round';
+                        ctx.beginPath();
+                        ctx.moveTo(startX, startY);
+                        ctx.lineTo(endX, endY);
+                        ctx.strokeStyle = color;
+                        ctx.lineWidth = 8 + 6 * power;
+                        ctx.globalAlpha = 0.8;
+                        ctx.stroke();
+                        ctx.shadowBlur = 40;
+                        ctx.shadowColor = color + '80';
+                        ctx.lineWidth = 4 + 4 * power;
+                        ctx.globalAlpha = 0.5;
+                        ctx.stroke();
+                        ctx.restore();
+
+                        const angle = Math.atan2(dy, dx);
+                        const arrowLen = 24 + 16 * power;
+                        const arrowAngle = 0.6;
+                        ctx.save();
+                        ctx.shadowBlur = 0;
+                        ctx.strokeStyle = color;
+                        ctx.lineWidth = 5;
+                        ctx.lineCap = 'round';
+                        ctx.globalAlpha = 0.9;
+                        ctx.beginPath();
+                        ctx.moveTo(endX, endY);
+                        ctx.lineTo(endX - arrowLen * Math.cos(angle - arrowAngle), endY - arrowLen * Math.sin(angle - arrowAngle));
+                        ctx.stroke();
+                        ctx.beginPath();
+                        ctx.moveTo(endX, endY);
+                        ctx.lineTo(endX - arrowLen * Math.cos(angle + arrowAngle), endY - arrowLen * Math.sin(angle + arrowAngle));
+                        ctx.stroke();
+                        ctx.restore();
+                    }
+                }
+            }
+        }
+
+        // ---- رویدادهای موس/لمس ----
+        function getCanvasCoords(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            let clientX, clientY;
+            if (e.touches) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+                e.preventDefault();
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+            return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+        }
+
+        function handlePointerDown(e) {
+            e.preventDefault();
+            if (state.isGameOver || state.phase !== 'WAITING') return;
+            const { x, y } = getCanvasCoords(e);
+            const currentTeam = getCurrentTeam();
+            const clickedDisc = state.discs.find(d => {
+                if (d.team !== currentTeam) return false;
+                const dx = d.body.position.x - x;
+                const dy = d.body.position.y - y;
+                return (dx*dx + dy*dy) <= (CONFIG.discRadius + 8) ** 2;
+            });
+            if (clickedDisc) {
+                state.selectedDiscId = clickedDisc.id;
+                state.phase = 'AIMING';
+                dragData.active = true;
+                dragData.startX = clickedDisc.body.position.x;
+                dragData.startY = clickedDisc.body.position.y;
+                dragData.endX = x;
+                dragData.endY = y;
+                hintEl.textContent = 'بکش و رها کن!';
+                updateUI();
+            } else {
+                hintEl.textContent = 'روی دیسک خودت کلیک کن!';
+            }
+        }
+
+        function handlePointerMove(e) {
+            e.preventDefault();
+            if (!dragData.active || state.phase !== 'AIMING') return;
+            const { x, y } = getCanvasCoords(e);
+            dragData.endX = x;
+            dragData.endY = y;
+        }
+
+        function handlePointerUp(e) {
+            e.preventDefault();
+            if (!dragData.active || state.phase !== 'AIMING') return;
+            dragData.active = false;
+
+            const disc = state.discs.find(d => d.id === state.selectedDiscId);
+            if (!disc) { state.phase = 'WAITING'; updateUI(); return; }
+
+            const startX = disc.body.position.x;
+            const startY = disc.body.position.y;
+            const endX = dragData.endX;
+            const endY = dragData.endY;
+            const dx = endX - startX;
+            const dy = endY - startY;
+            const length = Math.sqrt(dx*dx + dy*dy);
+            if (length < 5) {
+                state.phase = 'WAITING';
+                state.selectedDiscId = null;
+                updateUI();
+                hintEl.textContent = 'بیشتر بکش!';
+                return;
+            }
+            const angle = Math.atan2(dy, dx);
+            const power = Math.min(length / 140, 1);
+
+            if (applyFlick(state.selectedDiscId, angle, power)) {
+                state.phase = 'SIMULATING';
+                state.simRunning = true;
+                hintEl.textContent = 'در حال شبیه‌سازی...';
+                startSimulation();
+            } else {
+                state.phase = 'WAITING';
+                state.selectedDiscId = null;
+                updateUI();
+                hintEl.textContent = 'خطا! دوباره امتحان کن';
+            }
+            dragData.endX = 0;
+            dragData.endY = 0;
+        }
+
+        canvas.addEventListener('mousedown', handlePointerDown);
+        canvas.addEventListener('mousemove', handlePointerMove);
+        canvas.addEventListener('mouseup', handlePointerUp);
+        canvas.addEventListener('mouseleave', handlePointerUp);
+        canvas.addEventListener('touchstart', handlePointerDown, { passive: false });
+        canvas.addEventListener('touchmove', handlePointerMove, { passive: false });
+        canvas.addEventListener('touchend', handlePointerUp, { passive: false });
+
+        // ---- دکمه‌های پنل ----
+        resetBtn.addEventListener('click', resetGame);
+        resetGameBtn.addEventListener('click', resetGame);
+
+        applyBtn.addEventListener('click', () => {
+            CONFIG.discRestitution = parseFloat(document.getElementById('discRestitution').value);
+            CONFIG.discFriction = parseFloat(document.getElementById('discFriction').value);
+            CONFIG.discDensity = parseFloat(document.getElementById('discDensity').value);
+            CONFIG.discLinearDamping = parseFloat(document.getElementById('discLinearDamping').value);
+            CONFIG.discAngularDamping = parseFloat(document.getElementById('discAngularDamping').value);
+            CONFIG.ballRestitution = parseFloat(document.getElementById('ballRestitution').value);
+            CONFIG.ballFriction = parseFloat(document.getElementById('ballFriction').value);
+            CONFIG.ballDensity = parseFloat(document.getElementById('ballDensity').value);
+            CONFIG.ballLinearDamping = parseFloat(document.getElementById('ballLinearDamping').value);
+            CONFIG.ballAngularDamping = parseFloat(document.getElementById('ballAngularDamping').value);
+            CONFIG.maxSpeed = parseFloat(document.getElementById('maxSpeed').value);
+            CONFIG.flickPowerFactor = parseFloat(document.getElementById('flickPower').value);
+            CONFIG.goalWidth = parseFloat(document.getElementById('goalWidth').value);
+
+            document.getElementById('discRestitutionVal').textContent = CONFIG.discRestitution.toFixed(2);
+            document.getElementById('discFrictionVal').textContent = CONFIG.discFriction.toFixed(2);
+            document.getElementById('discDensityVal').textContent = CONFIG.discDensity.toFixed(2);
+            document.getElementById('discLinearDampingVal').textContent = CONFIG.discLinearDamping.toFixed(2);
+            document.getElementById('discAngularDampingVal').textContent = CONFIG.discAngularDamping.toFixed(2);
+            document.getElementById('ballRestitutionVal').textContent = CONFIG.ballRestitution.toFixed(2);
+            document.getElementById('ballFrictionVal').textContent = CONFIG.ballFriction.toFixed(2);
+            document.getElementById('ballDensityVal').textContent = CONFIG.ballDensity.toFixed(2);
+            document.getElementById('ballLinearDampingVal').textContent = CONFIG.ballLinearDamping.toFixed(2);
+            document.getElementById('ballAngularDampingVal').textContent = CONFIG.ballAngularDamping.toFixed(2);
+            document.getElementById('maxSpeedVal').textContent = CONFIG.maxSpeed;
+            document.getElementById('flickPowerVal').textContent = CONFIG.flickPowerFactor;
+            document.getElementById('goalWidthVal').textContent = CONFIG.goalWidth;
+
+            resetGame();
+        });
+
+        // ---- همگام‌سازی اولیه اسلایدرها ----
+        function syncSliders() {
+            const sliders = document.querySelectorAll('input[type="range"]');
+            sliders.forEach(slider => {
+                const valSpan = document.getElementById(slider.id + 'Val');
+                if (valSpan) valSpan.textContent = slider.value;
+                slider.addEventListener('input', () => {
+                    const valSpan = document.getElementById(slider.id + 'Val');
+                    if (valSpan) valSpan.textContent = slider.value;
+                });
+            });
+        }
+        syncSliders();
+
+        // ---- راهنمای پاپ‌آپ ----
+        document.querySelectorAll('.help-icon').forEach(icon => {
+            icon.addEventListener('click', (e) => {
+                const param = icon.dataset.param;
+                if (param && HELP_TEXTS[param]) {
+                    popupTitle.textContent = 'راهنمای ' + document.querySelector(`[data-param="${param}"]`).closest('.param-header').querySelector('span').textContent.trim();
+                    popupDesc.textContent = HELP_TEXTS[param];
+                    helpPopup.classList.add('show');
+                }
+            });
+        });
+        closePopup.addEventListener('click', () => helpPopup.classList.remove('show'));
+        helpPopup.addEventListener('click', (e) => {
+            if (e.target === helpPopup) helpPopup.classList.remove('show');
+        });
+
+        // ---- حلقه اصلی ----
+        function gameLoop() {
+            if (state.simRunning) {
+                Engine.update(engine, 1000 / 60);
+                checkStopCondition();
+            }
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // ---- راه‌اندازی ----
+        function init() {
+            resetGame();
+            setupCollisionEvents();
+            gameLoop();
+        }
+
+        init();
+    </script>
+</body>
+</html>

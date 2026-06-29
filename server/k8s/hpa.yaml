@@ -1,0 +1,25 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: gamehub-fleet-autoscaler
+  namespace: gamehub
+spec:
+  scaleTargetRef:
+    apiVersion: agones.dev/v1
+    kind: Fleet
+    name: gamehub-game-servers
+  minReplicas: 2
+  maxReplicas: 20
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 60
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 70

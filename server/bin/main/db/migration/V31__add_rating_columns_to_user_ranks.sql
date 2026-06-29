@@ -1,0 +1,3 @@
+ALTER TABLE user_ranks ADD COLUMN rating_mean DOUBLE DEFAULT 1200.0;
+ALTER TABLE user_ranks ADD COLUMN rating_std_dev DOUBLE DEFAULT 350.0;
+ALTER TABLE user_ranks ADD COLUMN rating_volatility DOUBLE DEFAULT 0.06;

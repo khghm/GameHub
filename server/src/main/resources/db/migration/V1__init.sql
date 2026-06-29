@@ -1,0 +1,31 @@
+CREATE TABLE users (
+    id UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
+    username VARCHAR(30) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    display_name VARCHAR(100),
+    avatar_url VARCHAR(500),
+    soft_currency BIGINT NOT NULL DEFAULT 0,
+    hard_currency INT NOT NULL DEFAULT 0,
+    xp BIGINT NOT NULL DEFAULT 0,
+    user_level INT NOT NULL DEFAULT 1,
+    settings TEXT DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    last_login TIMESTAMP WITH TIME ZONE
+);
+
+CREATE TABLE refresh_tokens (
+    token VARCHAR(255) PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE friendships (
+    id UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    friend_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    status VARCHAR(10) NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE,
+    UNIQUE (user_id, friend_id)
+);
