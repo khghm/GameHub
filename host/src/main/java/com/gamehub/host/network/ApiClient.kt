@@ -31,9 +31,9 @@ class ApiClient {
     private val client = HttpClient(OkHttp) {
         engine {
             config {
-                connectTimeout(10, TimeUnit.SECONDS)
-                readTimeout(10, TimeUnit.SECONDS)
-                writeTimeout(10, TimeUnit.SECONDS)
+                connectTimeout(60, TimeUnit.SECONDS)
+                readTimeout(60, TimeUnit.SECONDS)
+                writeTimeout(60, TimeUnit.SECONDS)
             }
         }
     }

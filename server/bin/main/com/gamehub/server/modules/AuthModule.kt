@@ -198,10 +198,93 @@ class AuthModule(
         return verified
     }
 
-    // ==================== متدهای موقت (برای فازهای بعدی) ====================
-    fun register(username: String, password: String, displayName: String): String =
-        json.encodeToString(AuthResponse(false, "ثبت‌نام موقتاً غیرفعال است"))
+    suspend fun register(username: String, password: String, displayName: String): String {
+        if (userRepo.findByUsername(username) != null) {
+            return json.encodeToString(AuthResponse(false, "نام کاربری تکراری است"))
+        }
 
-    fun login(username: String, password: String): String =
-        json.encodeToString(AuthResponse(false, "ورود معمولی موقتاً غیرفعال است"))
+        val passwordHash = BCrypt.withDefaults().hashToString(12, password.toCharArray())
+
+        val user = User(
+            id = UUID.randomUUID(),
+            username = username,
+            passwordHash = passwordHash,
+            displayName = displayName,
+            avatarUrl = null,
+            softCurrency = 100L,
+            hardCurrency = 0,
+            walletVersion = 1L,
+            xp = 0,
+            userLevel = 1,
+            settings = "{}",
+            createdAt = OffsetDateTime.now(),
+            lastLogin = OffsetDateTime.now(),
+            isGuest = false,
+            deviceIdHash = null,
+            ipHash = null,
+            isMigrated = false
+        )
+
+        userRepo.create(user)
+
+        // ✅ اصلاح: nonce را به صورت Long ارسال می‌کنیم (نه String)
+        val token = jwtService.createAccessToken(
+            userId = user.id.toString(),
+            username = user.username,
+            isGuest = false,
+            ipHash = "",
+            nonce = generateNonce() // ← بدون toString()
+        )
+
+        return json.encodeToString(
+            AuthResponse(
+                success = true,
+                message = "ثبت‌نام موفق",
+                token = token,
+                user = UserResponse(
+                    id = user.id.toString(),
+                    username = user.username,
+                    displayName = user.displayName,
+                    avatarUrl = user.avatarUrl,
+                    isGuest = false
+                )
+            )
+        )
+    }
+    suspend fun login(username: String, password: String): String {
+        val user = userRepo.findByUsername(username) ?: return json.encodeToString(AuthResponse(false, "کاربر یافت نشد"))
+
+        if (user.isGuest) {
+            return json.encodeToString(AuthResponse(false, "ورود با حساب مهمان غیرمجاز است"))
+        }
+
+        val passwordResult = BCrypt.verifyer().verify(password.toCharArray(), user.passwordHash)
+        if (!passwordResult.verified) {
+            return json.encodeToString(AuthResponse(false, "نام کاربری یا کلمه عبور اشتباه است"))
+        }
+
+        // ✅ اصلاح: nonce را به صورت Long ارسال می‌کنیم (نه String)
+        val token = jwtService.createAccessToken(
+            userId = user.id.toString(),
+            username = user.username,
+            isGuest = false,
+            ipHash = "",
+            nonce = generateNonce() // ← بدون toString()
+        )
+
+        return json.encodeToString(
+            AuthResponse(
+                success = true,
+                message = "ورود موفق",
+                token = token,
+                user = UserResponse(
+                    id = user.id.toString(),
+                    username = user.username,
+                    displayName = user.displayName,
+                    avatarUrl = user.avatarUrl,
+                    isGuest = false
+                )
+            )
+        )
+    }
 }

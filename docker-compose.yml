@@ -1,13 +1,14 @@
+# docker-compose.yml (Root)
 version: '3.8'
 
 services:
   postgres:
-    image: postgres:15-alpine
+    image: postgres:16
     container_name: gamehub_postgres
     environment:
-      POSTGRES_DB: gamehub
-      POSTGRES_USER: gamehub
-      POSTGRES_PASSWORD: gamehub123
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
       - "5432:5432"
     volumes:

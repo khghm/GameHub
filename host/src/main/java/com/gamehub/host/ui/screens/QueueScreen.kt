@@ -61,7 +61,15 @@ fun QueueScreen(
     }
 
     LaunchedEffect(gameType, finalPlayerName) {
-        val client = HttpClient(OkHttp)
+        val client = HttpClient(OkHttp) {
+            engine {
+                config {
+                    connectTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+                    readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+                    writeTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+                }
+            }
+        }
         val token = com.gamehub.host.network.GlobalAuth.token ?: ""
         try {
             while (true) {

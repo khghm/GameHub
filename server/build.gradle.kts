@@ -24,6 +24,7 @@ dependencies {
     implementation("io.github.resilience4j:resilience4j-circuitbreaker:2.2.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
+    implementation("io.konform:konform-jvm:0.11.1")
     implementation(project(":games:connectfour"))
     implementation(project(":games:ludo"))
     implementation(project(":games:monopoly"))

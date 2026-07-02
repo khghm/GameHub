@@ -14,7 +14,8 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
-        buildConfigField("String", "SERVER_IP", "\"192.168.213.154\"") // مقدار پیش‌فرض
+        buildConfigField("String", "SERVER_IP", "\"192.168.126.154\"")
+//        buildConfigField("String", "SERVER_IP", "\"${System.getenv("SERVER_IP") ?: "192.168.1.1"}\"") // مقدار پیش‌فرض
     }
 
     buildFeatures {
